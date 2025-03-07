@@ -1,0 +1,49 @@
+services:
+  web:
+    build: .
+    working_dir: /app/src
+    command: /app/bash/web_entrypoint.sh
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    
+  binance_ws:
+    build: .
+    working_dir: /app/src
+    command: python manage.py connect_binance_ws 
+    volumes:
+      - .:/app
+    depends_on:
+      - web
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: yourdbname
+      POSTGRES_USER: yourdbuser
+      POSTGRES_PASSWORD: yourdbpassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "15432:5432"
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "16379:6379"
+
+  tests:
+    build: .
+    command: sh -c "/app/bash/wait-for-it.sh db 5432 30 --strict && pytest 
+      --maxfail=1 --disable-warnings -q"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
